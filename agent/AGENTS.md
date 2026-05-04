@@ -76,11 +76,21 @@ Repeat **Reading → Thinking → Editing → Re-evaluation** until the task is 
 - **Sibling registration patterns.** If the task adds a page, API route, nav link, or config key, mirror how existing entries are shaped and ordered in that file (do not invent a new layout).
 - **No gratuitous synonyms.** Do not rename JSON response keys, SQL aliases, or exported identifiers when an existing pattern or task string already supplies the preferred spelling.
 
+### DRY (multi-surface tasks)
+
+When acceptance criteria require **the same behavior and UI** on **two or more** routes, pages, or entry points (e.g. student dashboard **and** classrooms hub), **implement it once**:
+
+- **Extract a single shared unit** — typically a colocated component under an existing feature folder (`components/...`), or a small hook / module if the overlap is mostly logic — then **wire it thinly** at each surface (import + minimal JSX or one call site per page).
+- **One source of truth** for copy, fetch/enrollment logic, modal flow, and styling variants so both surfaces stay aligned and criteria edits do not drift.
+- **Match neighbor patterns** in the new file (imports, `"use client"`, naming, motion/toast usage) so the extraction reads like the rest of the repo; do not invent a parallel style “because it is shared.”
+- **Scope:** apply DRY **only** for the task’s repeated surfaces. Do not refactor unrelated pages, shared layouts, or global abstractions beyond what the criteria imply.
+
 ### Preserve file shape (prefer values over restructuring)
 
 When you touch an existing file, **keep its structure and editing style**: same component boundaries, markup skeleton, and CSS organization as the surrounding code.
 
 - **Prefer value edits** — literals, durations, CSS lengths, colors, asset paths, labels — over reshaping components or CSS layout.
+- **Do not too much customization and reshaping**
 - **Do not invent new shape** — avoid adding hooks, animated wrappers, alternate import layouts, or reorganizing `@media` / nesting unless the task explicitly demands that architecture. Extra structure increases diff size and usually **lowers** baseline line overlap versus a minimal patch.
 
 ## Edit Rules
