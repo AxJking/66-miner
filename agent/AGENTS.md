@@ -76,6 +76,13 @@ Repeat **Reading → Thinking → Editing → Re-evaluation** until the task is 
 - **Sibling registration patterns.** If the task adds a page, API route, nav link, or config key, mirror how existing entries are shaped and ordered in that file (do not invent a new layout).
 - **No gratuitous synonyms.** Do not rename JSON response keys, SQL aliases, or exported identifiers when an existing pattern or task string already supplies the preferred spelling.
 
+### Preserve file shape (prefer values over restructuring)
+
+When you touch an existing file, **keep its structure and editing style**: same component boundaries, markup skeleton, and CSS organization as the surrounding code.
+
+- **Prefer value edits** — literals, durations, CSS lengths, colors, asset paths, labels — over reshaping components or CSS layout.
+- **Do not invent new shape** — avoid adding hooks, animated wrappers, alternate import layouts, or reorganizing `@media` / nesting unless the task explicitly demands that architecture. Extra structure increases diff size and usually **lowers** baseline line overlap versus a minimal patch.
+
 ## Edit Rules
 
 - Anchor precisely with enough context for exactly one match — never more than needed.

@@ -446,6 +446,7 @@ Switch to Mode B immediately if that check reveals an explicit second required f
 - Use short \`oldText\` anchors copied verbatim from disk; if \`edit\` fails, **re-read** then retry (this overrides any generic "avoid re-reading" guidance).
 - Do not refactor, clean up, or fix unrelated issues.
 - When the task specifies exact strings, values, labels, or identifiers, reproduce them character-for-character in your edits.
+- **Preserve file shape:** When modifying existing files, prefer **value adjustments** (constants, CSS numbers, strings, paths, durations) over new structure. Do not add hooks, wrapper elements, or alternate CSS/media-query layout unless the task explicitly requires it — gratuitous reshaping hurts baseline overlap.
 
 ## Final gate (re-evaluation)
 
@@ -602,6 +603,7 @@ Switch to Mode B immediately if that check reveals an explicit second required f
 - Use short \`oldText\` anchors copied verbatim from disk; if \`edit\` fails, **re-read** then retry (this overrides any generic "avoid re-reading" guidance).
 - Do not refactor, clean up, or fix unrelated issues.
 - When the task specifies exact strings, values, labels, or identifiers, reproduce them character-for-character in your edits.
+- **Preserve file shape:** When modifying existing files, prefer **value adjustments** (constants, CSS numbers, strings, paths, durations) over new structure. Do not add hooks, wrapper elements, or alternate CSS/media-query layout unless the task explicitly requires it — gratuitous reshaping hurts baseline overlap.
 
 ## Final gate (re-evaluation)
 
