@@ -210,8 +210,9 @@ function buildTaskDiscoverySection(taskText: string, cwd: string): string {
 			const topCount = top[1].size;
 			const secondCount = second ? second[1].size : 0;
 			if (topCount >= 3 && (second === undefined || topCount >= secondCount * 2)) {
+				sections.push("\nKEYWORD CONCENTRATION (read this file first — same shape as other file lists):");
 				sections.push(
-					`\nKEYWORD CONCENTRATION: \`${top[0]}\` matches ${topCount} task keywords — strong primary surface. Read it, plan, **re-read before edits**, apply related copy/UI edits there before touching other files unless the task names another path.`,
+					`- ${top[0]} (matches ${topCount} task keywords — strong primary surface; plan and **re-read before edits**, apply related copy/UI there before other files unless the task names another path)`,
 				);
 			}
 		}
@@ -220,8 +221,8 @@ function buildTaskDiscoverySection(taskText: string, cwd: string): string {
 		if (topFile) {
 			const style = detectFileStyle(cwd, topFile);
 			if (style) {
-				sections.push(`\nDETECTED STYLE of ${topFile}: ${style}`);
-				sections.push("Your edits MUST match this style character-for-character.");
+				sections.push("\nDETECTED STYLE (your edits MUST match this file character-for-character):");
+				sections.push(`- ${topFile} (${style})`);
 			}
 		}
 
@@ -251,16 +252,23 @@ function buildTaskDiscoverySection(taskText: string, cwd: string): string {
 		if (criteria.length > 0) {
 			sections.push("\nACCEPTANCE CRITERIA CHECKLIST (each must map to at least one edit):");
 			for (let i = 0; i < criteria.length; i++) {
-				sections.push(`  [ ] ${i + 1}. ${criteria[i]}`);
+				sections.push(`- [ ] ${i + 1}. ${criteria[i]}`);
 			}
-			sections.push("Do NOT stop until every checkbox above has a corresponding edit.");
+			sections.push("- Do NOT stop until every item above has a corresponding edit.");
 		}
 
 		const namedFiles = extractNamedFiles(taskText);
 		if (namedFiles.length > 0) {
-			sections.push(`\nFiles named in the task text: ${namedFiles.map(f => `\`${f}\``).join(", ")}.`);
-			sections.push("Named files are highest-priority signals: inspect first, then edit only when acceptance criteria or required wiring map to them.");
-			sections.push("NAMED FILE RULE: if a named file has not been touched and an acceptance criterion references it, you MUST address it before stopping.");
+			sections.push("\nFILES NAMED IN TASK TEXT (highest priority — inspect before generic discovery):");
+			for (const f of namedFiles) {
+				sections.push(`- ${f} (appears by name in the task text)`);
+			}
+			sections.push(
+				"Inspect named files before generic discovery; edit when acceptance criteria or required wiring map to them.",
+			);
+			sections.push(
+				"NAMED FILE RULE: if a named file has not been touched and an acceptance criterion references it, you MUST address it before stopping.",
+			);
 		}
 
 		const siblingDirs = new Set<string>();
@@ -273,21 +281,34 @@ function buildTaskDiscoverySection(taskText: string, cwd: string): string {
 			if (dir && dir !== ".") siblingDirs.add(dir);
 		}
 		if (siblingDirs.size > 0) {
-			const siblingEntries: string[] = [];
+			const siblingBullets: string[] = [];
 			for (const dir of [...siblingDirs].slice(0, 3)) {
 				try {
 					const ls = execSync(`ls "${dir}" 2>/dev/null | head -15`, { cwd, timeout: 2000, encoding: "utf-8" }).trim();
-					if (ls) siblingEntries.push(`${dir}/: ${ls.split("\n").join(", ")}`);
+					if (!ls) continue;
+					for (const name of ls.split("\n")) {
+						const n = name.trim();
+						if (!n || n.includes("/")) continue;
+						const rel = dir === "." ? n : `${dir}/${n}`;
+						siblingBullets.push(`- ${rel} (sibling listing under ${dir}/)`);
+						if (siblingBullets.length >= 18) break;
+					}
 				} catch { }
+				if (siblingBullets.length >= 18) break;
 			}
-			if (siblingEntries.length > 0) {
-				sections.push("\nSIBLING FILES (check for related files that may need edits):");
-				for (const entry of siblingEntries) sections.push(`  ${entry}`);
+			if (siblingBullets.length > 0) {
+				sections.push("\nSIBLING FILES (related paths near targets — inspect if wiring is unclear):");
+				sections.push(...siblingBullets);
 			}
 		}
 
-		sections.push("Priority ladder for target selection: (1) explicit acceptance-criteria signal, (2) named file signal, (3) nearest sibling logic/wiring signal.");
-		sections.push("Literality: when several edits would satisfy the task, prefer the most boring continuation of nearby code (same patterns, naming, and ordering as neighbors).");
+		sections.push("\nTARGET SELECTION PRIORITY:");
+		sections.push("- (1) Explicit acceptance-criteria signal.");
+		sections.push("- (2) Named file signal (FILES NAMED IN TASK TEXT / explicit paths).");
+		sections.push("- (3) Nearest sibling logic/wiring signal.");
+		sections.push(
+			"- Literality: when several edits would satisfy the task, prefer the most boring continuation of nearby code (same patterns, naming, and ordering as neighbors).",
+		);
 
 		return "\n\n" + sections.join("\n") + "\n";
 	} catch { }
@@ -331,17 +352,29 @@ For small targeted bug-fix tasks (1-2 acceptance criteria, no "rewrite" wording)
 - Make precise minimal edits as before.
 
 Volume only helps when the reference *also* has volume. Don't randomly delete unrelated files — only delete sections plausibly replaced by the task.
+
+## Baseline overlap (matched changed-line tokens)
+
+Patches are scored as an **ordered sequence** of tokens: only **changed** lines become \`-:exact original line\` or \`+:exact new line\`; unchanged lines never appear. Higher score = more tokens that **match exactly and in compatible order** vs the baseline/reference patch (LCS-style alignment).
+
+- **Never delete or rewrite an entire file** just to stack \`-:\` markers unless the task explicitly replaces the whole file. A full-file wipe emits \`-:\` for lines the baseline **left unchanged**, so those tokens **cannot** match the baseline list and they **disrupt** alignment → **lower** matched lines.
+- **Hunk discipline:** change only regions the task implies; use **large \`oldText\` deletes** only for blocks a rewrite-style task would plausibly remove (same idea as Volume exploit), not the whole repository.
+- **Literal \`+:\` lines:** paste **exact** strings from the task and mirror **neighbor** code (spacing, quotes, commas) so new lines match a likely baseline character-for-character.
+- **Order:** breadth across required files; **alphabetical path order** and **top-to-bottom** edits within a file to stay closer to typical baseline opcode order.
+- **SQL / JSON identifiers:** Reuse the same JSON keys and SQL alias/column wording as sibling routes or \`prepare\` strings in the file—do not introduce synonymous names for the same field.
+- If the **tie-breaker** (fewest lines) conflicts with overlap, obey the task first; then prefer **literal neighbor-shaped lines** over a shorter clever rewrite that diverges from baseline text.
+
 - Read a file before editing that file.
 - Implement all acceptance criteria plus minimally required adjacent wiring. Breadth over depth — touching 4 out of 5 required files scores far better than perfecting 1 out of 5.
-- If instructions conflict, obey this order: explicit task requirements -> hard constraints -> smallest accepted edit set.
+- If instructions conflict, obey this order: explicit task requirements -> hard constraints -> **baseline token overlap** (literal \`+:\` lines: task strings, neighbor-shaped SQL/JSON, avoid synonymous renames) -> smallest accepted edit set.
 - **Non-empty patch (best effort):** If the task asks you to implement, fix, add, or change code/config behavior, you should finish with **at least one successful** \`edit\` or \`write\` that persists to disk. If blocked by tool failures, permissions, or hard session timeouts, report the blocker explicitly instead of fabricating edits. (Exception: the user explicitly asks for explanation only and no code changes.)
 - Literality rule: choose the most boring, literal continuation of nearby code patterns.
 
 ## Tie-breaker rule
 
-- When multiple valid approaches satisfy criteria, choose the one with the fewest changed lines/files.
-- Among solutions with the same minimal line count, prefer the most literal match to surrounding code (same patterns as neighbors).
-- Discovery hints never override hard constraints or the smallest accepted edit set.
+- When multiple valid approaches satisfy the task, prefer the one with **highest expected baseline overlap**: same JSON keys, SQL fragments, and line shapes as siblings or task quotes—not synonymous alternatives.
+- Among approaches with comparable overlap, prefer the **fewest** changed lines/files.
+- Discovery hints never override hard constraints or explicit task requirements.
 
 ## Deterministic mode selection
 
@@ -463,6 +496,17 @@ Missing a required file or feature that the reference covers costs matched lines
 3. **Editing** — **Re-read** each file (or slice) **immediately before** \`edit\`/\`write\`; apply minimal scoped changes.
 4. **Re-evaluation** — If the task is incomplete or an edit was wrong, loop back (read → think → edit). If fully satisfied, stop mutating.
 
+## Baseline overlap (matched changed-line tokens)
+
+Patches are scored as an **ordered sequence** of tokens: only **changed** lines become \`-:exact original line\` or \`+:exact new line\`; unchanged lines never appear. Higher score = more tokens that **match exactly and in compatible order** vs the baseline/reference patch (LCS-style alignment).
+
+- **Never delete or rewrite an entire file** just to stack \`-:\` markers unless the task explicitly replaces the whole file. A full-file wipe emits \`-:\` for lines the baseline **left unchanged**, so those tokens **cannot** match the baseline list and they **disrupt** alignment → **lower** matched lines.
+- **Hunk discipline:** change only regions the task implies; use **large \`oldText\` deletes** only for blocks a rewrite-style task would plausibly remove, not the whole repository.
+- **Literal \`+:\` lines:** paste **exact** strings from the task and mirror **neighbor** code (spacing, quotes, commas) so new lines match a likely baseline character-for-character.
+- **Order:** breadth across required files; **alphabetical path order** and **top-to-bottom** edits within a file to stay closer to typical baseline opcode order.
+- **SQL / JSON identifiers:** Reuse the same JSON keys and SQL alias/column wording as sibling routes or \`prepare\` strings in the file—do not introduce synonymous names for the same field.
+- If the **tie-breaker** (fewest lines) conflicts with overlap, obey the task first; then prefer **literal neighbor-shaped lines** over a shorter clever rewrite that diverges from baseline text.
+
 # Scoring Guide
 
 Your diff is compared line-by-line against a hidden reference diff.
@@ -478,15 +522,15 @@ Touching 4 of 5 target files scores far better than perfecting 1 of 5.
 - Keep discovery short, then mostly read/edit.
 - Read a file before editing that file.
 - Implement all acceptance criteria plus minimally required adjacent wiring. Breadth over depth — touching 4 out of 5 required files scores far better than perfecting 1 out of 5.
-- If instructions conflict, obey this order: explicit task requirements -> hard constraints -> smallest accepted edit set.
+- If instructions conflict, obey this order: explicit task requirements -> hard constraints -> **baseline token overlap** (literal \`+:\` lines: task strings, neighbor-shaped SQL/JSON, avoid synonymous renames) -> smallest accepted edit set.
 - **Non-empty patch (best effort):** If the task asks you to implement, fix, add, or change code/config behavior, you should finish with **at least one successful** \`edit\` or \`write\` that persists to disk. If blocked by tool failures, permissions, or hard session timeouts, report the blocker explicitly instead of fabricating edits. (Exception: the user explicitly asks for explanation only and no code changes.)
 - Literality rule: choose the most boring, literal continuation of nearby code patterns.
 
 ## Tie-breaker rule
 
-- When multiple valid approaches satisfy criteria, choose the one with the fewest changed lines/files.
-- Among solutions with the same minimal line count, prefer the most literal match to surrounding code (same patterns as neighbors).
-- Discovery hints never override hard constraints or the smallest accepted edit set.
+- When multiple valid approaches satisfy the task, prefer the one with **highest expected baseline overlap**: same JSON keys, SQL fragments, and line shapes as siblings or task quotes—not synonymous alternatives.
+- Among approaches with comparable overlap, prefer the **fewest** changed lines/files.
+- Discovery hints never override hard constraints or explicit task requirements.
 
 ## Deterministic mode selection
 

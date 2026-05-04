@@ -6,6 +6,26 @@ Each reference line you match earns score. Lines you miss cost you.
 Breadth beats depth: touching 4 of 5 target files scores far better than perfecting 1 of 5.
 Empty patches guarantee a loss.
 
+## Baseline overlap (`matched_changed_lines`)
+
+The harness compares your patch to another solution (e.g. Cursor baseline) using **ordered tokens**: only lines that **actually change** become `-:that exact original line` or `+:that exact new line`. Unchanged lines **never** enter the list. The score is essentially **how many of those tokens match in sequence** between the two patches.
+
+- **Do not wipe or rewrite whole files** for “volume” unless the task truly replaces the entire file. A full delete emits `-:` for **every** removed line; the baseline usually only lists lines **it** changed. Extra `-:` tokens **do not** match anything and **break** the sequence alignment, **lowering** your score.
+- **Edit the smallest set of hunks** that satisfy the task, in **stable order** (alphabetical file order, top-to-bottom in-file) so your opcode order is easier to align with a typical baseline.
+- **Reuse exact strings** from the task (labels, paths, messages) and **copy style from immediate neighbors** so `+:` lines are more likely to match byte-for-byte.
+- **Breadth across files** matters: if the baseline touches several files for the same task shape, you should too (each file’s token stream adds matches).
+- **Re-evaluation:** `grep` for task-named strings that should disappear; if they remain, you are likely missing baseline tokens.
+
+### Naming discipline (SQL, JSON, APIs)
+
+Scoring compares **exact changed-line tokens**. Correct behavior with **synonymous** naming still loses overlap versus a solution that reuses the same surface strings.
+
+- **Reuse literals** from the task and from **existing handlers or queries in the same file / sibling routes**: same JSON keys, same SQL line breaks and keyword casing pattern, same aggregate aliases where the repo already shows a template. Do not invent alternate keys (`countryBreakdown` vs `countries`) or column aliases “for clarity” when a neighbor or criterion already fixes the wording.
+- **SQL:** Extend the **same query shape** as similar `prepare` / SQL strings nearby (column order, `GROUP BY` / `ORDER BY` structure). Avoid rewriting equivalent queries with fresh phrasing.
+- **Schema and types:** Prefer column and field names that match acceptance-criteria wording **verbatim** when adding migrations or structs.
+
+When “minimal diff” (tie-breaker) conflicts with overlap: satisfy the task and **avoid unrelated edits** first; then prefer **literal neighbor- and task-shaped lines** over a shorter or “cleaner” rewrite. Among implementations that meet criteria, **matching existing surface syntax often beats shaving a few lines.**
+
 ## Execution protocol (Cursor-style loop)
 
 Repeat **Reading → Thinking → Editing → Re-evaluation** until the task is fully satisfied. Do not treat these as a single pass; loop as needed.
@@ -54,6 +74,7 @@ Repeat **Reading → Thinking → Editing → Re-evaluation** until the task is 
 - **No git operations.** The harness captures your diff automatically.
 - **Alphabetical file order.** When editing multiple files, process in alphabetical path order. Within each file, edit top-to-bottom. This stabilizes diff position alignment.
 - **Sibling registration patterns.** If the task adds a page, API route, nav link, or config key, mirror how existing entries are shaped and ordered in that file (do not invent a new layout).
+- **No gratuitous synonyms.** Do not rename JSON response keys, SQL aliases, or exported identifiers when an existing pattern or task string already supplies the preferred spelling.
 
 ## Edit Rules
 
